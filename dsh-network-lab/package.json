@@ -1,0 +1,48 @@
+{
+  "name": "dsh-network-lab",
+  "version": "0.5.0",
+  "description": "DeepSeek Harness 网络工程实验插件：eNSP Telnet、HCIA 路线、10 个实验、12 个故障、20 条踩坑知识库、练完就测、安全重启验证",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib/**/*.js",
+    "prompts/**/*.md",
+    "skills/**/*.md",
+    "cordis.patch.yml",
+    "install.ps1",
+    "README.md",
+    "PROMPTS.md",
+    "使用说明.md",
+    "HCIA学习路线.md",
+    "带教笔记.md"
+  ],
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.2.1-rc.3 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "check": "node --check index.js && node --check lib/telnet.js && node --check lib/store.js && node --check lib/labs.js && node --check lib/quiz.js && node --check lib/reference.js && node --check lib/curriculum.js && node --check lib/faults.js && node --check lib/standard.js && node --check lib/checklist.js && node --check lib/knowledge.js && node --check lib/faultquiz.js",
+    "test": "node test/telnet.test.js && node test/plugin.test.js && node test/integration.test.js && node test/curriculum.test.js && node test/fault-integration.test.js && node test/progress.test.js && node test/teaching.test.js && node test/v3.test.js"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "network",
+    "ensp",
+    "huawei",
+    "vrp",
+    "lab"
+  ]
+}
