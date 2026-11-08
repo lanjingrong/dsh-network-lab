@@ -1,8 +1,39 @@
 import path from 'node:path'
 import os from 'node:os'
-import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises'
+import { repairMojibake } from './telnet.js'
 
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/
+
+/**
+ * Replace `file` with already-written `temp` without ever leaving `file`
+ * missing. POSIX rename overwrites atomically. Windows refuses an existing
+ * target, so the first attempt fails with EPERM/EEXIST/EACCES and we fall back
+ * to the old remove-then-rename — but only after proving the target is still
+ * there, so the destructive path is never taken on a healthy file.
+ */
+async function replaceFile(temp, file) {
+  try {
+    await rename(temp, file)
+    return
+  } catch (error) {
+    const code = error && error.code
+    if (code !== 'EACCES' && code !== 'EPERM' && code !== 'EEXIST') throw error
+  }
+  // Windows cannot rename over an existing file. Confirm the target is still
+  // present before deleting so a stray ENOENT never turns into a lost file.
+  try {
+    await readFile(file)
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      await rename(temp, file)
+      return
+    }
+    throw error
+  }
+  await unlink(file)
+  await rename(temp, file)
+}
 
 export function resolveStorePath(env = process.env) {
   if (env.DSH_NETLAB_DEVICES) return path.resolve(env.DSH_NETLAB_DEVICES)
@@ -92,13 +123,7 @@ export async function writeProgress(patch, env = process.env) {
       }
       merged.updatedAt = new Date().toISOString()
       await writeFile(temp, `${JSON.stringify(merged, null, 2)}\n`, 'utf8')
-      try {
-        await rename(temp, file)
-      } catch {
-        // Windows cannot rename over an existing file.
-        await rm(file, { force: true })
-        await rename(temp, file)
-      }
+      await replaceFile(temp, file)
       return merged
     }
     return merged || emptyProgress()
@@ -143,13 +168,14 @@ export function normalizeDevice(input = {}) {
 export function publicDevice(device) {
   return {
     id: device.id,
-    name: device.name,
+    // Older versions decoded GBK output as UTF-8; repair names already saved.
+    name: repairMojibake(device.name),
     host: device.host,
     port: device.port,
     protocol: device.protocol,
     username: device.username,
     hasPassword: Boolean(device.password),
-    notes: device.notes,
+    notes: repairMojibake(device.notes),
     updatedAt: device.updatedAt,
   }
 }
@@ -161,7 +187,7 @@ export async function readDevices(env = process.env) {
     const parsed = JSON.parse(raw)
     const list = Array.isArray(parsed) ? parsed : parsed?.devices
     if (!Array.isArray(list)) return []
-    return list.map((item) => normalizeDevice(item))
+    return list.map((item) => normalizeDevice({ ...item, name: repairMojibake(item.name), notes: repairMojibake(item.notes) }))
   } catch (error) {
     if (error && error.code === 'ENOENT') return []
     if (error instanceof SyntaxError) throw new Error(`设备文件 JSON 解析失败：${file}`)
@@ -176,8 +202,7 @@ export async function writeDevices(devices, env = process.env) {
   const body = `${JSON.stringify({ version: 1, devices }, null, 2)}\n`
   const temp = `${file}.${process.pid}.tmp`
   await writeFile(temp, body, 'utf8')
-  await rm(file, { force: true })
-  await rename(temp, file)
+  await replaceFile(temp, file)
   try { await chmod(file, 0o600) } catch { /* Windows 或不支持 chmod 的文件系统 */ }
   return file
 }

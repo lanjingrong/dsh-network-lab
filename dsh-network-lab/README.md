@@ -275,6 +275,9 @@ npm test
 测试覆盖：
 
 - Telnet 选项协商、提示符识别、分页/回显清理、登录、`save` 确认；
+- 中文编码识别：GBK 与 UTF-8 自动判别、逐字节拆分不吞字、乱码名修复；
+- 设备/进度文件的原子写入（12 次连写不留 `.tmp`、写入之间文件始终可读）；
+- 踩坑知识库：VRP 原始报错优先、口语化描述也能匹配、过宽正则不误报；
 - 插件工具注册、输出 schema、实验/题库/参考内容；
 - 用模拟 eNSP Telnet 服务器跑通 `netlab_exec` 和 `netlab_verify`。
 
@@ -286,8 +289,8 @@ npm test
 dsh-network-lab/
 ├─ index.js              # 插件入口：12 个工具 + 系统提示注入
 ├─ lib/
-│  ├─ telnet.js          # Telnet 协议、会话、登录、分页、save、reboot
-│  ├─ store.js           # 设备清单与学习进度持久化
+│  ├─ telnet.js          # Telnet 协议、编码识别（UTF-8/GB18030）、会话、登录、分页、save、reboot
+│  ├─ store.js           # 设备清单与学习进度持久化（原子替换写）
 │  ├─ labs.js            # 10 个实验的任务/提示/参考配置/验证项
 │  ├─ curriculum.js      # HCIA 10 阶段路线与设备操作 8 步
 │  ├─ faults.js          # 12 个故障案例 + 排障 6 问
