@@ -161,7 +161,7 @@ PC 上的数据面测试（`ping`）在 eNSP 里双击 PC 的命令行执行。
 
 | 工具 | 用途 | 关键参数 |
 | --- | --- | --- |
-| `netlab_curriculum` | HCIA 10 阶段学习路线、进度、下一阶段、阶段备注 | `action`, `phase`, `note` |
+| `netlab_curriculum` | HCIA 10 阶段学习路线：每个阶段挂好主实验/扩展实验/故障案例/自测题，带过关校验，进度持久化 | `action`, `phase`, `note`, `force` |
 | `netlab_fault` | 12 个故障案例，先问 6 个问题，可注入真实故障，自动附配套题 | `action`, `id`, `level`, `layer`, `inject`, `bindings`, `quiz` |
 | `netlab_standard` | 华为命名与编号规范：生成 sysname/description、VLAN 规划、配置评审 | `action`, `site`, `role`, `index`, `config` |
 | `netlab_checklist` | 变更前/中/后与排障检查卡，或按实验生成 | `action`, `id`, `lab` |

@@ -62,7 +62,7 @@ test('netlab_curriculum tools produce stable markdown', async () => {
     assert.match(phase.markdown, /vlan-basic/)
     const progress = await __test.curriculumTool.execute({ action: 'progress' })
     assert.match(progress.markdown, /0\/10/)
-    await __test.curriculumTool.execute({ action: 'complete', phase: 'phase-0' })
+    await __test.curriculumTool.execute({ action: 'complete', phase: 'phase-0', force: true })
     const after = await __test.curriculumTool.execute({ action: 'progress' })
     assert.match(after.markdown, /1\/10/)
     await __test.curriculumTool.execute({ action: 'reset' })

@@ -3,7 +3,7 @@ name: network-lab
 description: 以华为 30 年老工程师视角带教的网络实验教练：连接 eNSP、按 HCIA 路线做 10 个 VRP 实验、12 个故障案例注入排查并自动出题、20 条踩坑知识库、华为命名规范、变更检查卡与安全重启验证。
 whenToUse: 用户要学习网络工程或备考 HCIA、规划学习路线、做华为 eNSP 实验、配置或排查交换机/路由器、遇到 VRP 报错、检查命名与变更规范、重启验证配置，或要求网络工程练习与测验时。
 metadata:
-  version: "0.5.1"
+  version: "0.6.0"
   language: zh-CN
 ---
 
@@ -49,7 +49,8 @@ metadata:
 1. 用户问“怎么学/路线/多久” → 先 `netlab_curriculum action=progress` 看进度，再 `action=next` 给下一阶段，不要一次倒出全部 10 个阶段。
 2. 进入某阶段 → `action=phase` 拿详细任务，并检查该阶段是否有配套实验，有就 `netlab_lab action=show lab=<id>`。
 3. phase-0 必须按“设备操作 8 步”走完（认识设备→视图→命名→看配置→保存→制造丢配置→重启验证→接口初识），每步让学习者说出为什么。
-4. 阶段结束 → `netlab_quiz` 出对应主题 5 题，正确率 ≥ 80% 才 `action=complete`。
+4. 阶段结束 → 先 `netlab_curriculum action=progress` 看过关条件；`action=complete` 会自己校验“主实验 + 正确率 ≥ 80%”，没通过就把缺的那项讲清楚，不要替用户加 `force=true`。
+5. 每个阶段该做的主实验、扩展实验、故障案例和自测命令，`action=progress`/`action=phase` 已经列好，照它给顺序；做完 `netlab_verify` 通过的实验会自动记入本会话的过关判定。
 5. 用户想跳阶段 → 先 `netlab_skillcheck phase=<目标阶段前的阶段>` 确认基础，缺什么补什么。
 6. 进度持久化在 `%DSH_HOME%\network-lab\progress.json`，重启 DSH 不丢失；阶段备注用 `action=note phase=<id> note=<文本>` 写入。
 

@@ -43,8 +43,9 @@ test('progress file lives beside devices and honours DSH_NETLAB_PROGRESS', () =>
 test('complete writes progress.json and survives a simulated restart', async () => {
   await withTempDir(async (dir) => {
     fakeContext()
-    await __test.curriculumTool.execute({ action: 'complete', phase: 'phase-0' })
-    await __test.curriculumTool.execute({ action: 'complete', phase: 'phase-1' })
+    // force: these tests exercise the file, not the pass line (see route.test.js).
+    await __test.curriculumTool.execute({ action: 'complete', phase: 'phase-0', force: true })
+    await __test.curriculumTool.execute({ action: 'complete', phase: 'phase-1', force: true })
 
     const raw = JSON.parse(await readFile(path.join(dir, 'progress.json'), 'utf8'))
     assert.deepEqual(raw.completed.sort(), ['phase-0', 'phase-1'])
@@ -76,7 +77,7 @@ test('notes persist and appear on the phase page', async () => {
 test('reset clears completions but keeps notes', async () => {
   await withTempDir(async () => {
     fakeContext()
-    await __test.curriculumTool.execute({ action: 'complete', phase: 'phase-3' })
+    await __test.curriculumTool.execute({ action: 'complete', phase: 'phase-3', force: true })
     await __test.curriculumTool.execute({ action: 'note', phase: 'phase-3', note: '静态路由 OK' })
     const reset = await __test.curriculumTool.execute({ action: 'reset' })
     assert.match(reset.markdown, /已清空/)
@@ -111,9 +112,9 @@ test('concurrent complete calls do not lose earlier phases', async () => {
   await withTempDir(async () => {
     fakeContext()
     await Promise.all([
-      __test.curriculumTool.execute({ action: 'complete', phase: 'phase-0' }),
-      __test.curriculumTool.execute({ action: 'complete', phase: 'phase-1' }),
-      __test.curriculumTool.execute({ action: 'complete', phase: 'phase-2' }),
+      __test.curriculumTool.execute({ action: 'complete', phase: 'phase-0', force: true }),
+      __test.curriculumTool.execute({ action: 'complete', phase: 'phase-1', force: true }),
+      __test.curriculumTool.execute({ action: 'complete', phase: 'phase-2', force: true }),
     ])
     const saved = await readProgress()
     assert.deepEqual(saved.completed.sort(), ['phase-0', 'phase-1', 'phase-2'])
@@ -128,7 +129,7 @@ test('startup load racing a complete keeps the completed phase', async () => {
     // Fire the startup load and a completion together, as a fast DSH restart can.
     await Promise.all([
       __test.loadSavedProgress(),
-      __test.curriculumTool.execute({ action: 'complete', phase: 'phase-2' }),
+      __test.curriculumTool.execute({ action: 'complete', phase: 'phase-2', force: true }),
     ])
     const saved = await readProgress()
     assert.deepEqual(saved.completed.sort(), ['phase-0', 'phase-1', 'phase-2'])

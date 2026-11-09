@@ -51,6 +51,19 @@ import {
   listPitfalls,
 } from './lib/knowledge.js'
 import { quizFromFault, quizPlanMarkdown, faultQuizPlan } from './lib/faultquiz.js'
+import {
+  PASS_PERCENT,
+  nextActionsMarkdown,
+  passLineMarkdown,
+  phaseFaults,
+  phaseLabs,
+  phaseOfFault,
+  phaseOfLab,
+  phasePassLine,
+  phaseQuestionIds,
+  phasesPassedBy,
+} from './lib/route-links.js'
+import { phaseLabel } from './lib/curriculum.js'
 
 export const name = 'dsh-network-lab'
 export const inject = ['tools', 'systemPrompt']
@@ -63,6 +76,27 @@ const DANGEROUS = /^(reboot|reset\s+saved-configuration|format|delete\b|undo\s+s
 const sessions = new Map()
 const quizzes = new Map()
 const completedPhases = new Set()
+/** quizId -> percent, kept so a phase can be closed only with a real score. */
+const quizScores = new Map()
+/** lab ids a learner has verified in this session; phases demand the lab. */
+const labsRun = new Set()
+
+/**
+ * What a learner has actually proved for a phase: the lab run here (or a lab
+ * the phase needs that a pass line already implies) plus the best quiz score
+ * recorded this session for one of the phase's question sets.
+ */
+function passState(phase, saved = null) {
+  const { main, more } = phaseLabs(phase)
+  const wanted = [...main, ...more]
+  const labDone = wanted.length === 0 || wanted.some((id) => labsRun.has(id))
+  let percent = null
+  for (const value of quizScores.values()) if (percent === null || value > percent) percent = value
+  if (percent === null && saved && saved.scores) {
+    for (const value of Object.values(saved.scores)) if (percent === null || value > percent) percent = value
+  }
+  return { labDone, percent }
+}
 
 function sessionKey(device) {
   return `${device.host}:${device.port}:${device.username || ''}`
@@ -744,7 +778,11 @@ const labTool = tool({
     }
     const lab = findLab(args.lab)
     if (!lab) throw new Error(`找不到实验 "${args.lab || ''}"。先运行 action=list。`)
-    if (action === 'show') return { action, markdown: labMarkdown(lab, 'show') }
+    if (action === 'show') {
+      const phase = phaseOfLab(lab.id)
+      const where = phase ? `\n\n本实验属于 **${phase.id}** ${phaseLabel(phase)}，过关条件：\`netlab_curriculum action=progress\`。` : ''
+      return { action, markdown: labMarkdown(lab, 'show') + where }
+    }
     if (action === 'hint') return { action, markdown: labMarkdown(lab, 'hint', args.hintIndex) }
     if (action === 'solution') return { action, markdown: labMarkdown(lab, 'solution') }
     throw new Error(`未知 action：${action}`)
@@ -799,7 +837,10 @@ const verifyTool = tool({
       }
     }
     const value = { ok: results.every((item) => item.status === 'pass'), results }
-    return { ...value, markdown: verifyMarkdown(lab, results) }
+    if (value.ok) labsRun.add(lab.id)
+    const phase = phaseOfLab(lab.id)
+    const where = value.ok && phase ? `\n\n本实验属于 **${phase.id}** ${phaseLabel(phase)}，已记入本会话：\`netlab_curriculum action=progress\` 看过关状态。` : ''
+    return { ...value, markdown: verifyMarkdown(lab, results) + where }
   },
 })
 
@@ -844,7 +885,16 @@ const quizTool = tool({
       if (!quiz) throw new Error('找不到该 quizId；请先 action=new 生成测验')
       const result = gradeQuiz(quiz, args.answers || [])
       quizzes.delete(quiz.id)
-      return { action, markdown: quizMarkdownGrade(result) }
+      const perQuestion = result.details.map((item) => (item.isCorrect ? item.id : ''))
+      quizScores.set(quiz.id, result.percent)
+      // A quiz clears a phase only when every question of that phase is right,
+      // so report which phases this attempt just closed.
+      const passed = phasesPassedBy(perQuestion)
+      const unlocked = passed.filter((id) => !completedPhases.has(id))
+      const tail = unlocked.length
+        ? `\n\n**过关**：这次全部答对的题覆盖了 ${unlocked.join('、')}，可以用 \`netlab_curriculum action=complete phase=${unlocked[0]}\` 标记完成。`
+        : ''
+      return { action, markdown: quizMarkdownGrade(result) + tail }
     }
     throw new Error(`未知 action：${action}`)
   },
@@ -873,6 +923,7 @@ const curriculumTool = tool({
     action: { type: 'string', enum: ['list', 'progress', 'next', 'phase', 'complete', 'reset', 'note'], description: 'list/progress/next/phase/complete/reset/note' },
     phase: str('阶段 id，例如 phase-2'),
     note: str('note 时写入的阶段备注，例如“VLAN 已掌握，trunk 还需练”'),
+    force: bool('complete 时跳过过关校验，默认 false'),
   },
   required: ['action'],
   timeoutMs: 15000,
@@ -889,20 +940,30 @@ const curriculumTool = tool({
         `已完成 **${progress.done}/${progress.total}**（${progress.percent}%）`,
         '',
         '```text',
-        ...CURRICULUM.map((phase) => `${completedPhases.has(phase.id) ? '[x]' : '[ ]'} ${phase.id}  ${phase.title}`),
+        ...CURRICULUM.map((phase) => (completedPhases.has(phase.id) ? '[x] ' : '[ ] ') + phase.id + '  ' + phase.title),
         '```',
         '',
         `进度文件：\`${resolveProgressPath()}\``,
       ]
       const next = nextPhase(completed)
-      if (next) parts.push('', `下一阶段：**${next.title}**，用 \`netlab_curriculum action=phase phase=${next.id}\``)
-      else parts.push('', '全部阶段已完成，建议每天用 `netlab_quiz` 保持题感。')
+      if (next) {
+        const line = phasePassLine(next, passState(next))
+        parts.push('', `## 下一阶段：${next.title}`, passLineMarkdown(line, next))
+        if (!line.passed) parts.push('', nextActionsMarkdown(next))
+        parts.push('', `详细任务：\`netlab_curriculum action=phase phase=${next.id}\``)
+      } else {
+        parts.push('', '全部阶段已完成，建议每天用 `netlab_quiz` 保持题感。')
+      }
       return { action, markdown: parts.join('\n') }
     }
     if (action === 'next') {
       const next = nextPhase([...completedPhases])
       if (!next) return { action, markdown: '所有阶段已完成。建议：`netlab_quiz action=new count=10` 做一套综合测验。' }
-      return { action, markdown: phaseMarkdown(next, { index: CURRICULUM.indexOf(next) }) }
+      const line = phasePassLine(next, passState(next))
+      return {
+        action,
+        markdown: [phaseMarkdown(next, { index: CURRICULUM.indexOf(next) }), '', passLineMarkdown(line, next)].join('\n'),
+      }
     }
     if (action === 'phase') {
       const phase = findPhase(args.phase)
@@ -910,12 +971,11 @@ const curriculumTool = tool({
         throw new Error(`找不到阶段 ${args.phase || ''}。可用：${listPhases().map((item) => item.id).join(', ')}`)
       }
       const saved = await readProgressQueued().catch(() => null)
-      const note = saved?.notes?.[phase.id]
-      const body = phaseMarkdown(phase)
-      return {
-        action,
-        markdown: note ? `${body}\n\n---\n\n**我的备注**：${note}` : body,
-      }
+      const note = saved && saved.notes ? saved.notes[phase.id] : null
+      const line = phasePassLine(phase, passState(phase, saved))
+      const parts = [phaseMarkdown(phase), '', passLineMarkdown(line, phase)]
+      if (note) parts.push('', '---', '', `**我的备注**：${note}`)
+      return { action, markdown: parts.join('\n') }
     }
     if (action === 'complete') {
       const phase = findPhase(args.phase)
@@ -923,12 +983,27 @@ const curriculumTool = tool({
       // Derive the saved set from disk so a startup load still in flight cannot
       // clobber this write; the in-memory set only reflects this session.
       const saved = await readProgressQueued().catch(() => emptyProgress())
+      const line = phasePassLine(phase, passState(phase, saved))
+      // Force is the learner's own call, but the tool never closes a phase silently.
+      if (!line.passed && !args.force) {
+        return {
+          action,
+          markdown: [
+            `**还没过关，先不计入完成**：${phase.title}`,
+            '',
+            passLineMarkdown(line, phase),
+            '',
+            `确实已经掌握，可以加 force=true 跳过校验：\`netlab_curriculum action=complete phase=${phase.id} force=true\``,
+          ].join('\n'),
+        }
+      }
       const next = new Set([...saved.completed, ...completedPhases, phase.id])
       completedPhases.add(phase.id)
       await writeProgress({ completed: [...next] })
+      const how = line.passed ? '' : '（force 跳过校验）'
       return {
         action,
-        markdown: `已标记完成：**${phase.title}**\n\n当前进度 ${next.size}/${CURRICULUM.length}，已写入 \`${resolveProgressPath()}\`。用 \`netlab_curriculum action=next\` 看下一阶段。`,
+        markdown: `已标记完成：**${phase.title}**${how}\n\n当前进度 ${next.size}/${CURRICULUM.length}，已写入 \`${resolveProgressPath()}\`。用 \`netlab_curriculum action=next\` 看下一阶段。`,
       }
     }
     if (action === 'reset') {
@@ -1196,6 +1271,9 @@ export const __test = {
   standardTool,
   checklistTool,
   completedPhases,
+  quizzes,
+  quizScores,
+  labsRun,
   loadSavedProgress,
   closeAllSessions,
   sessionList,

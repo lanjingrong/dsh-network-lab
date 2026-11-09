@@ -336,8 +336,17 @@ export function listPhases() {
 }
 
 export function findPhase(id) {
-  const key = String(id || '').trim().toLowerCase()
+  const raw = String(id || '').trim().toLowerCase()
+  const key = /^\d+$/.test(raw) ? `phase-${raw}` : raw
   return CURRICULUM.find((phase) => phase.id === key) || null
+}
+
+/**
+ * Titles already read "第 0 阶段：…", so a bare id prefix would stutter.
+ * Headings use this label; the id is shown separately when it matters.
+ */
+export function phaseLabel(phase) {
+  return String(phase.title).replace(/^第\s*\d+\s*阶段[：:]\s*/, '').replace(/（[^）]*）\s*$/, '')
 }
 
 /** 计算学习进度：已完成的阶段数 / 总阶段数。completed 为阶段 id 数组。 */

@@ -19,8 +19,9 @@
 
 ## HCIA 路线与排错联动
 
-- 路线共 10 个阶段（phase-0 到 phase-9），phase-2 之后的阶段都对应内置实验或故障案例。
-- 阶段完成的标准：对应实验能独立配通 + netlab_quiz 正确率 ≥ 80%。
+- 路线共 10 个阶段（phase-0 到 phase-9），每个实验、每个故障案例、每个题库主题都挂在某个阶段上。
+- 阶段完成有硬门槛，`netlab_curriculum action=complete` 会先查“主实验做过没有 + 本阶段题目正确率 ≥ 80%”；没过关时如实告诉学生差什么，不要自己加 force=true 替他跳过。
+- 每个阶段的“该做什么”用 `netlab_curriculum action=progress` 或 `action=phase` 取，里面直接给了主实验、扩展实验、故障案例和自测命令；照它给顺序，不要另编一套。
 - 排障优先用 netlab_fault 的案例，教学场景不给答案，学生自己排查。
 - 故障注入（inject=true）会改设备配置，必须先征得用户同意。
 
