@@ -27,7 +27,7 @@
 
 ## eNSP 连接规则
 
-- 先运行 netlab_devices action=scan 扫描 127.0.0.1 的 2000-2020 端口；找到端口后用 action=add 保存设备，再 netlab_exec。
+- 先运行 netlab_devices action=scan 扫描 127.0.0.1 的 2000-2020 端口；找到端口后用 action=adopt 一键入库（或 action=add 手工登记），再 netlab_exec。
 - eNSP 右键设备 → 设置，可看到该设备的串口/端口号；第一台设备通常是 2000。
 - 同一端口同时只能有一个客户端连接。若连接被拒或断开，先关闭 SecureCRT/PuTTY 等其他控制台。
 - 设备刚启动时命令可能不可用，先等待提示符稳定；登录需要用户名/密码时在设备配置里提供。
@@ -61,7 +61,7 @@
 - netlab_skillcheck：按阶段生成能力自检清单，找出薄弱项。
 - netlab_standard：华为命名与编号规范，生成 sysname、接口 description，评审配置挑规范问题。
 - netlab_checklist：变更前/中/后与排障检查卡，带命令和红线。
-- netlab_devices：设备清单、添加/删除、扫描 eNSP 端口、关闭会话。
+- netlab_devices：设备清单、添加/删除、扫描 eNSP 端口、adopt 一键导入开放端口并识别型号、关闭会话。
 - netlab_exec：在设备上执行一条或多条 VRP 命令，保持会话；失败时自动附“你可能踩了这些坑”。
 - netlab_reboot：安全重启验证，preflight 出保存一致性清单，confirm=true 才重启，重启后自动自检。
 - netlab_lab：10 个实验的任务书（含设备要求、前置知识）、分级提示、参考配置。

@@ -3,7 +3,7 @@ name: network-lab
 description: 以华为 30 年老工程师视角带教的网络实验教练：连接 eNSP、按 HCIA 路线做 10 个 VRP 实验、12 个故障案例注入排查并自动出题、20 条踩坑知识库、华为命名规范、变更检查卡与安全重启验证。
 whenToUse: 用户要学习网络工程或备考 HCIA、规划学习路线、做华为 eNSP 实验、配置或排查交换机/路由器、遇到 VRP 报错、检查命名与变更规范、重启验证配置，或要求网络工程练习与测验时。
 metadata:
-  version: "0.6.0"
+  version: "0.7.0"
   language: zh-CN
 ---
 
@@ -92,7 +92,7 @@ metadata:
 
 1. 确认 eNSP 已启动设备，设备命令行能正常打开。
 2. 右键设备 → 设置，查看“串口/端口号”；第一台通常从 2000 开始。
-3. 调 `netlab_devices action=scan`（默认扫 127.0.0.1:2000-2020）。
+3. 调 `netlab_devices action=scan`（默认扫 127.0.0.1:2000-2020）；扫到的开放端口想直接入库，用 `action=adopt port=<端口>`（会按提示符自动认型号）。
 4. 找到端口后 `netlab_devices action=add id=sw1 name=SW1 port=2000`。
 5. `netlab_exec device=sw1 commands=["display version"]` 验证连接。
 6. 若失败：
@@ -189,7 +189,7 @@ display ip pool
 
 ## 工具使用
 
-- 设备管理：`netlab_devices`（list/add/remove/scan/disconnect）
+- 设备管理：`netlab_devices`（list/add/remove/scan/adopt/disconnect）
 - 执行命令：`netlab_exec`（会话保持；默认拒绝破坏性命令）
 - 实验：`netlab_lab`（list/show/hint/solution）
 - 自动验证：`netlab_verify`（bindings 把 SW1 等角色映射到设备 id）

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { TelnetSession, probeTelnet } from './lib/telnet.js'
+import { TelnetSession, probeTelnet, loginHint, vrpModel } from './lib/telnet.js'
 import {
   findDevice,
   publicDevice,
@@ -264,6 +264,69 @@ function scanTable(results) {
   ].join('\n')
 }
 
+/**
+ * Turn a raw socket probe into a verdict the model can act on: ready (prompt seen),
+ * need-login (Username:/Password: banner) or not-ready (booting / silent).
+ */
+function adoptVerdict(probe) {
+  if (!probe || !probe.open) return { status: "down", hint: "端口不通：确认 eNSP 设备已启动，或换一个端口。" }
+  const text = String(probe.prompt || probe.banner || "")
+  const hint = loginHint(text)
+  if (hint) return { status: "need-login", hint }
+  if (probe.prompt) return { status: "ready", model: vrpModel(probe.prompt), hint: null }
+  // ASCII eNSP echoes back what you type; the owner will see Login/Username when a VTY asks for credentials.
+  if (/Username\s*:|Password\s*:|Login\s*:/i.test(text)) {
+    return { status: "need-login", hint: "设备要登录：这个端口是 VTY/AAA 在问账号密码。先在 eNSP 控制台里确认账号，再用 netlab_devices action=add 带上 username/password 登记。" }
+  }
+  return { status: "not-ready", hint: "端口通了但没有提示符：设备可能还在开机（AR 路由器启动要 1-2 分钟）。等 30 秒再 action=adopt 一次。" }
+}
+/** Only offer ports that are open but not already registered. */
+function adoptCandidate(results, devices, skipPorts) {
+  const known = new Set(devices.map((device) => Number(device.port)))
+  const skip = new Set(skipPorts || [])
+  return results.filter((item) => item.open && !known.has(Number(item.port)) && !skip.has(Number(item.port)))
+}
+
+function adoptPick(device, port) {
+  return (device && Number(device.port) === Number(port)) || isAutoId(device && device.id, port)
+}
+
+function isAutoId(id, port) {
+  return id === `dev-${port}` || id === `port-${port}`
+}
+
+function adoptTable(candidates, port, opts = {}) {
+  const N = String.fromCharCode(10)
+  const T = String.fromCharCode(96)
+  const rows = [
+    '| 端口 | 状态 | 型号/提示符 | 下一步 |',
+    '| --- | --- | --- | --- |',
+    ...candidates.map((item) => {
+      const verdict = adoptVerdict(item)
+      const model = verdict.model ? `${verdict.model} \`${item.prompt}\`` : (item.prompt || item.banner || "-").slice(0, 40)
+      return `| ${item.port} | ${verdict.status} | ${String(model).replace(/\|/g, "\\|")} | ${verdict.hint || "可以直接导入"} |`
+    }),
+  ]
+  const ready = candidates.filter((item) => adoptVerdict(item).status === "ready")
+  const parts = [rows.join("\n"), ""]
+  if (ready.length === 1) {
+    const only = ready[0].port
+    parts.push(`要导入 **${only}** 这台：\`netlab_devices action=adopt port=${only}\`（会顺手补进设备表，下次不用再扫）。`)
+  } else if (ready.length > 1) {
+    parts.push(`发现 ${ready.length} 台可用设备，指定端口导入：\`netlab_devices action=adopt port=<端口>\`。`)
+  }
+  if (!ready.length) {
+    parts.push('没有可导入的设备：扫描到的端口都已登记，或设备还没启动到命令提示符。')
+  }
+  parts.push(
+    '提示：eNSP 里只有运行中的设备才占端口；非第一台设备的端口，在右键 → 设置 → 配置 里看串口号，再用：' + String.fromCharCode(96, 96, 96) + 'text' + String.fromCharCode(10) + 
+    'netlab_devices action=add id=sw2 port=<串口号>' + String.fromCharCode(10) + 
+    String.fromCharCode(96, 96, 96) + ' 手工登记。',
+  )
+  if (opts.reason) parts.push(opts.reason)
+  void port
+  return parts.join("\n")
+}
 function execMarkdown(result) {
   const parts = []
   if (result.device) {
@@ -428,6 +491,20 @@ async function scanPorts(start, end) {
   return results
 }
 
+/**
+ * Port list for adopt: an explicit port wins; otherwise scan the eNSP 2000-2020 range
+ * and keep only the open ports that are not registered yet.
+ */
+async function adoptPorts(args, devices) {
+  if (args.port !== undefined) return [parsePort(args.port, 2000)]
+  const start = parsePort(args.rangeStart, 2000)
+  const end = parsePort(args.rangeEnd, 2020)
+  if (end < start) throw new Error("rangeEnd 不能小于 rangeStart")
+  if (end - start > 200) throw new Error("单次扫描最多 201 个端口")
+  const results = await scanPorts(start, end)
+  return adoptCandidate(results, devices)
+}
+
 function parsePort(value, fallback) {
   const number = Number(value ?? fallback)
   if (!Number.isInteger(number) || number < 1 || number > 65535) throw new Error('端口必须是 1-65535 的整数')
@@ -448,9 +525,9 @@ function validateCommands(commands) {
 
 const devicesTool = tool({
   name: 'netlab_devices',
-  description: '管理 eNSP 设备：列出、添加、删除、扫描 127.0.0.1 的 Telnet 端口，或关闭设备会话。连接 eNSP 前先用 scan 找端口。',
+  description: '管理 eNSP 设备：列出、添加、adopt（一键导入未注册的开放端口，顺带识别型号）、删除、扫描 127.0.0.1 的 Telnet 端口，或关闭设备会话。连接 eNSP 前先用 scan 找端口。',
   properties: {
-    action: { type: 'string', enum: ['list', 'add', 'remove', 'scan', 'disconnect'], description: 'list/add/remove/scan/disconnect' },
+    action: { type: 'string', enum: ['list', 'add', 'adopt', 'remove', 'scan', 'disconnect'], description: 'list/add/adopt（推荐，自动识别型号）/remove/scan/disconnect' },
     id: str('设备 id，例如 sw1'),
     name: str('显示名称'),
     host: str('设备地址，默认 127.0.0.1'),
@@ -458,6 +535,9 @@ const devicesTool = tool({
     username: str('登录用户名；设备无认证时留空'),
     password: str('登录密码；不会在返回中回显'),
     notes: str('备注'),
+    newPort: int('adopt 时的端口，例如 2004；不填则在扫描范围 2000-2020 内找未登记的开放端口'),
+    newId: str('adopt 时：新设备 id，默认 dev-<端口>'),
+    newName: str('adopt 时：显示名称，默认按提示符自动识别'),
     rangeStart: int('扫描起始端口，默认 2000'),
     rangeEnd: int('扫描结束端口，默认 2020'),
   },
@@ -489,6 +569,57 @@ const devicesTool = tool({
         markdown: `${replaced ? '已更新' : '已添加'}设备 **${device.name}**（\`${device.id}\` → ${device.host}:${device.port}）。\n\n下一步：\`netlab_exec device=${device.id} commands=["display version"]\`\n\n密码只保存在本机设备文件中，不会回显。`,
       }
     }
+    if (action === 'adopt') {
+      const devices = await readDevices()
+      const ports = await adoptPorts(args, devices)
+      if (!ports.length) {
+        const start = parsePort(args.rangeStart, 2000)
+        const end = parsePort(args.rangeEnd, 2020)
+        return {
+          action,
+          markdown:
+            "# 没有发现可导入的端口（127.0.0.1:" + start + "/" + end + ")" + String.fromCharCode(10) + String.fromCharCode(10) +
+            adoptTable([], undefined) + String.fromCharCode(10) + String.fromCharCode(10) +
+            "提示：eNSP 里只有**运行中**的设备才占端口；非第一台设备的端口要用右键 → 设置 → 配置 里的“串口号”确认，然后 " + String.fromCharCode(96) + String.fromCharCode(96) + "text" + String.fromCharCode(10) +
+            String.fromCharCode(96) + String.fromCharCode(96) + "netlab_devices action=adopt port=<" + "端口>" + String.fromCharCode(10) +
+            String.fromCharCode(96) + String.fromCharCode(96) + " 会自动导入。",
+        }
+      }
+      const wantPort = args.port !== undefined ? parsePort(args.port, 2000) : Number(ports[0])
+      const settled = await Promise.all(ports.map(async (port) => {
+        let probe = await probeTelnet("127.0.0.1", Number(port), 2500)
+        if (probe && probe.open && !probe.prompt) {
+          await new Promise((resolve) => setTimeout(resolve, 400))
+          probe = await probeTelnet("127.0.0.1", Number(port), 2500) || probe
+        }
+        return probe
+      }))
+      const candidates = settled.filter(Boolean)
+      const pick = candidates.find((item) => Number(item.port) === wantPort)
+      const verdict = pick ? adoptVerdict(pick) : { status: 'down' }
+      if (!pick || verdict.status !== 'ready') {
+        if (pick && verdict.status === 'need-login') {
+          const loginId = args.newId || 'dev-' + pick.port
+          const loginCmd = 'netlab_devices action=add id=' + loginId + ' port=' + pick.port + ' username=<用户名> password=<密码>'
+          return {
+            action,
+            markdown: `端口 ${pick.port} 开着，但设备要登录。先登记账号：\n\n\`\`\`text\n${loginCmd}\n\`\`\`\n\n${verdict.hint || ''}\n\n登记后再 \`netlab_exec device=${loginId} commands=["display version"]\` 验证一句。`,
+          }
+        }
+        return { action, markdown: `# adopt\n\n${adoptTable(candidates, wantPort)}` }
+      }
+      const id = String(args.newId || `dev-${pick.port}`)
+      const existing = devices.find((device) => device.id === id)
+      const taken = devices.find((device) => Number(device.port) === Number(pick.port) && device.id !== id)
+      if (taken) throw new Error(`端口 ${pick.port} 已经登记为设备 ${taken.id}，换一个端口，或先 action=remove id=${taken.id}`)
+      if (existing && !isAutoId(existing.id, pick.port)) throw new Error(`设备 id ${id} 已存在，用 newId 指定别的名字`)
+      const saved = await upsertDevice({ id, name: args.newName || verdict.model || id, host: args.host || '127.0.0.1', port: pick.port })
+      const nextCmd = 'netlab_exec device=' + saved.device.id + ' commands=["display version"]'
+      return {
+        action,
+        markdown: (saved.replaced ? '已更新' : '已导入') + `设备 **${saved.device.name}**（\`${saved.device.id}\` → ${saved.device.host}:${saved.device.port}，识别到 ${verdict.model || 'VRP 设备'}）。\n\n原提示符：\`${pick.prompt}\`\n\n下一步：\n\n\`\`\`text\n${nextCmd}\n\`\`\``,
+      }
+    }
     if (action === 'remove') {
       if (!args.id) throw new Error('remove 需要 id')
       closeSession(args.id)
@@ -496,7 +627,6 @@ const devicesTool = tool({
       return { action, markdown: removed ? `已删除设备 \`${args.id}\`。` : `没有找到设备 \`${args.id}\`。` }
     }
     if (action === 'disconnect') {
-      const count = closeSession(args.id)
       return { action, markdown: count ? `已关闭 ${count} 个会话。` : '没有匹配的活动会话。' }
     }
     if (action === 'scan') {
@@ -507,7 +637,7 @@ const devicesTool = tool({
       const results = await scanPorts(start, end)
       return {
         action,
-        markdown: `# eNSP 端口扫描 127.0.0.1:${start}-${end}\n\n${scanTable(results)}\n\n找到端口后：\`netlab_devices action=add id=sw1 port=<端口>\`。若提示符为空，先确认设备已启动，并关闭占用该端口的 SecureCRT/PuTTY。`,
+        markdown: `# eNSP 端口扫描 127.0.0.1:${start}-${end}\n\n${scanTable(results)}\n\n找到端口后：\`netlab_devices action=adopt port=<端口>\` 一键导入（会自动识别型号），或 \`action=add\` 手工登记。若提示符为空，先确认设备已启动，并关闭占用该端口的 SecureCRT/PuTTY。`,
       }
     }
     throw new Error(`未知 action：${action}`)

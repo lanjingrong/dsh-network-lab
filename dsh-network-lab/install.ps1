@@ -87,5 +87,5 @@ Write-Host 'dsh-network-lab 已链接到 profile：' -ForegroundColor Green
 Write-Host "  $profileDir"
 Write-Host ''
 Write-Host '下一步：完全退出并重新启动 DSH，然后新建会话。' -ForegroundColor Yellow
-Write-Host '重启后会多出 netlab_devices / netlab_exec / netlab_lab / netlab_verify / netlab_quiz / netlab_reference 六个工具。'
+Write-Host '重启后会多出 netlab_devices / netlab_exec / netlab_reboot / netlab_lab / netlab_verify / netlab_quiz / netlab_reference / netlab_curriculum / netlab_fault / netlab_skillcheck / netlab_standard / netlab_checklist 共 12 个工具。'
 Write-Host "如浏览器页面未更新，刷新 $env:DSH_WEB_URL 。"

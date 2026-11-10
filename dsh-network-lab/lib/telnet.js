@@ -30,16 +30,36 @@ const gb18030 = new TextDecoder('gb18030')
 // A run of CJK (and full-width punctuation) followed by printable ASCII.
 const UTF8_CJK_RUN = new RegExp('^[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]+(?:[ \t!-~]*)$')
 
-/**
- * Decide between UTF-8 and GB18030 from a sample of raw bytes.
- *
- * "Is this valid UTF-8?" is not a reliable test: GBK's two-byte characters are
- * in 0x81-0xFE / 0x40-0xFE, so a short GBK sample can accidentally form valid
- * UTF-8 byes ("学习机" -> D1 A7 CF B0 BB FA decodes as "\u07A7\u03F0\u07EA"... no,
- * as "ѧ" plus garbage). Grade the candidate decodings instead: mojibake is what
- * UTF-8 makes of GBK and vice versa, and the real text always has far more
- * letters / CJK / digits than replacement chars or symbols in odd ranges.
- */
+function modelKeywords(name) {
+  const raw = String(name || '')
+  if (/USG/i.test(raw)) return '华为防火墙（USG）'
+  if (/S\d{4}/i.test(raw)) return '华为交换机（S 系列）'
+  if (/^AR/i.test(raw)) return '华为路由器（AR 系列）'
+  if (/^R\d/i.test(raw)) return '华为路由器（R 系列）'
+  if (/^\[.*\]$/.test(raw)) return '华为设备（在系统视图）'
+  if (/Huawei|VRP|Quidway/i.test(raw)) return '华为 VRP 设备'
+  return null
+}
+
+export function vrpModel(text) {
+  const lastLine = String(text || "").replace(/[\r]/g, "").trimEnd().slice(
+    String(text || "").replace(/[\r]/g, "").trimEnd().lastIndexOf("\n") + 1,
+  )
+  return modelKeywords(lastLine)
+}
+
+/** Hint shown when a raw probe only sees an authentication banner. */
+export function loginHint(text) {
+  const raw = String(text || '')
+  if (/Username:/i.test(raw) && /Password:/i.test(raw)) {
+    return '设备要求用户名和密码：先在 eNSP 控制台里记住账号，再用 \`netlab_devices action=add\` 带上 username/password 登记（USG 防火墙首次登录还要先改密码）。'
+  }
+  if (/Password:/i.test(raw)) {
+    return '设备要求密码：在 eNSP 控制台里确认 VTY 的 authentication-mode 是 password，再用 action=add 带上 password 登记。'
+  }
+  return null
+}
+
 export function scoreText(text, encoding) {
   let good = 0
   let bad = 0

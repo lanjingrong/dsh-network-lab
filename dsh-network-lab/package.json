@@ -1,6 +1,6 @@
 {
   "name": "dsh-network-lab",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "DeepSeek Harness 网络工程实验插件：eNSP Telnet、HCIA 路线、10 个实验、12 个故障、20 条踩坑知识库、练完就测、安全重启验证",
   "type": "module",
   "private": false,
@@ -33,16 +33,27 @@
     }
   },
   "scripts": {
-    "check": "node --check index.js && node --check lib/telnet.js && node --check lib/store.js && node --check lib/labs.js && node --check lib/quiz.js && node --check lib/reference.js && node --check lib/curriculum.js && node --check lib/faults.js && node --check lib/standard.js && node --check lib/checklist.js && node --check lib/knowledge.js && node --check lib/faultquiz.js",
-    "test": "node test/telnet.test.js && node test/plugin.test.js && node test/integration.test.js && node test/curriculum.test.js && node test/fault-integration.test.js && node test/progress.test.js && node test/teaching.test.js && node test/v3.test.js && node test/fixes.test.js"
+    "test": "node test/run-all.mjs",
+    "check": "node --check index.js && node --check lib/telnet.js && node --check lib/store.js && node --check lib/labs.js"
   },
   "keywords": [
     "dsh",
     "deepseek-harness",
-    "network",
+    "dsh-plugin",
     "ensp",
     "huawei",
     "vrp",
+    "hcia",
+    "networking",
+    "telnet",
     "lab"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lanjingrong/dsh-network-lab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lanjingrong/dsh-network-lab/issues"
+  },
+  "homepage": "https://github.com/lanjingrong/dsh-network-lab#readme"
 }

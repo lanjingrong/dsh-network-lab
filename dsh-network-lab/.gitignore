@@ -1,0 +1,16 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 本地运行时数据（设备清单 / 学习进度）
+devices.json
+progress.json
+.dsh/
+
+# 构建 / 打包产物（注意：发布用的 dsh-network-lab-*.zip 不忽略，方便直接在网页上传）
+release/
+*.7z
+*.tar.gz

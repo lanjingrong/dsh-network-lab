@@ -4,9 +4,23 @@
 
 > 不是“生成一段配置”的 prompt 集合，而是带 **Telnet 会话、设备清单、实验库、自动验证、选择题题库** 的 Host 插件。
 >
-> 第一次使用请看更详细的 **[使用说明.md](使用说明.md)**。
+> 第一次使用请看更详细的 **[使用说明.md](使用说明.md)**；照着 **[从仓库安装后的 8 组练习.md](从仓库安装后的 8 组练习.md)** 走一遍能吃透插件。
+>
+> 版本变化见 **[CHANGELOG.md](CHANGELOG.md)**。
 
-## 功能
+![tests](https://img.shields.io/badge/tests-77%20passed-3fb950) ![Node](https://img.shields.io/badge/Node-%3E%3D20-339933) ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.5-4B32C3) ![eNSP](https://img.shields.io/badge/eNSP-Huawei%20VRP-C7000B) ![license](https://img.shields.io/badge/license-MIT-blue)
+
+## 一句话上手
+
+```powershell
+git clone https://github.com/lanjingrong/dsh-network-lab.git
+cd dsh-network-lab
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+完全退出 DSH 再启动，新建会话；在 eNSP 里把设备开机，然后对 Agent 说一句 **“扫描 eNSP 端口并连上第一台设备”**。
+
+## 它能做什么
 
 | 能力 | 说明 |
 | --- | --- |
@@ -38,10 +52,19 @@
 
 ### 方式 A：一键脚本（推荐，Windows）
 
-在 PowerShell 中执行：
+先拿到代码（任选一种）：
 
 ```powershell
-cd "C:\Users\laola\Documents\deepseek-harness\default-workspace\dsh-network-lab"
+# git clone
+git clone https://github.com/lanjingrong/dsh-network-lab.git
+cd dsh-network-lab
+
+# 或者：在 GitHub 页面点 Code → Download ZIP，解压后 cd 进去
+```
+
+然后执行安装脚本：
+
+```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -108,7 +131,7 @@ node "$env:DSH_HOME\dsh-runtimes\dsh-primary-runtime\dependencies\pnpm\bin\pnpm.
 如果当前 DSH 版本暴露了 `plugin_manager` 工具，在 Creator/允许安装的预设中执行：
 
 ```text
-plugin_manager action=install_bundle target=C:\Users\laola\Documents\deepseek-harness\default-workspace\dsh-network-lab
+plugin_manager action=install_bundle target=<仓库克隆的绝对路径>
 ```
 
 然后刷新页面。Host 侧新路由/工具通常仍需重启 DSH 才稳定。
@@ -166,7 +189,7 @@ PC 上的数据面测试（`ping`）在 eNSP 里双击 PC 的命令行执行。
 | `netlab_standard` | 华为命名与编号规范：生成 sysname/description、VLAN 规划、配置评审 | `action`, `site`, `role`, `index`, `config` |
 | `netlab_checklist` | 变更前/中/后与排障检查卡，或按实验生成 | `action`, `id`, `lab` |
 | `netlab_skillcheck` | 按阶段生成能力自检清单 | `phase` |
-| `netlab_devices` | 设备清单/添加/删除/扫描/断开会话 | `action`, `id`, `host`, `port`, `username`, `password` |
+| `netlab_devices` | 设备清单/添加/删除/扫描/adopt 一键导入/断开会话 | `action`, `id`, `host`, `port`, `username`, `password`, `newPort`, `newId`, `newName` |
 | `netlab_exec` | 执行 VRP 命令，保持会话；失败自动附坑点提示 | `device`, `commands`, `save`, `newSession`, `allowDestructive` |
 | `netlab_reboot` | 安全重启验证：preflight 清单 → confirm 重启 → 重启后自检 | `device`, `phase`, `confirm`, `check`, `waitMs` |
 | `netlab_lab` | 10 个实验的任务书/提示/参考配置 | `action`, `lab`, `hintIndex` |
@@ -180,7 +203,7 @@ PC 上的数据面测试（`ping`）在 eNSP 里双击 PC 的命令行执行。
 
 ```text
 1. netlab_devices action=scan
-2. netlab_devices action=add id=sw1 name=SW1 port=2000
+2. netlab_devices action=adopt port=2000（或 netlab_devices action=add id=sw1 name=SW1 port=2000）
 3. netlab_devices action=add id=sw2 name=SW2 port=2001
 4. netlab_lab action=show lab=vlan-basic
 5. netlab_exec device=sw1 commands=["system-view", "sysname SW1", "vlan batch 10 20"]
@@ -268,9 +291,11 @@ $env:DSH_NETLAB_DEVICES = "D:\labs\devices.json"
 
 ```powershell
 cd dsh-network-lab
-npm run check
-npm test
+npm run check   # node --check：index.js 与核心模块的语法检查
+npm test        # 逐个文件跑 test/*.test.js，汇总通过/失败
 ```
+
+> 不要用 `node --test`：在部分 Windows 沙箱里子进程会被拒绝（`spawn EPERM`），所以 `test/run-all.mjs` 逐个文件调用 node 并核对输出。
 
 测试覆盖：
 
@@ -306,8 +331,11 @@ dsh-network-lab/
 ├─ HCIA学习路线.md       # 10 阶段完整路线
 ├─ 带教笔记.md           # eNSP 20 个坑 + 新人话术
 ├─ skills/network-lab/SKILL.md
-├─ install.ps1
-└─ test/                 # 52 个测试
+├─ CHANGELOG.md          # 版本变更记录
+├─ 从仓库安装后的 8 组练习.md  # 复制粘贴即可的连续练习
+├─ LICENSE               # MIT
+├─ .gitignore
+├─ test/                 # 77 个测试 + run-all.mjs 跑全部
 ```
 
 ## 兼容性
