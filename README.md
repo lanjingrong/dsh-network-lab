@@ -35,7 +35,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 | 命名与规范 | `netlab_standard` 生成 sysname/description、VLAN 规划，评审配置挑现场问题 |
 | 变更检查卡 | `netlab_checklist` 变更前/中/后与排障检查表，带命令与红线 |
 | 能力自检 | `netlab_skillcheck` 按阶段生成检查清单，找薄弱项 |
-| 自动验证 | `netlab_verify` 按实验的 `display` 检查项判定通过/失败 |
+| 自动验证 | `netlab_verify` 按实验的 `display` 检查项判定通过/失败，`auto=true` 免手工绑定角色 |
 | 分级提示 | `netlab_lab action=hint` 逐级给提示，`solution` 才给参考配置 |
 | 选择题 | `netlab_quiz` 生成/批改，覆盖 VLAN、STP、OSPF、路由、NAT、ACL、DHCP、ARP、子网划分；**支持按故障出题** |
 | 命令速查 | `netlab_reference` 离线查询常用配置与分层排障 |
@@ -173,7 +173,7 @@ netlab_exec device=sw1 commands=["display version", "display clock"]
 netlab_lab action=list
 netlab_lab action=show lab=vlan-basic
 netlab_devices action=scan
-netlab_verify lab=vlan-basic bindings=[{"role":"SW1","device":"sw1"},{"role":"SW2","device":"sw2"}]
+netlab_verify lab=vlan-basic auto=true
 ```
 
 PC 上的数据面测试（`ping`）在 eNSP 里双击 PC 的命令行执行。
@@ -193,7 +193,7 @@ PC 上的数据面测试（`ping`）在 eNSP 里双击 PC 的命令行执行。
 | `netlab_exec` | 执行 VRP 命令，保持会话；失败自动附坑点提示 | `device`, `commands`, `save`, `newSession`, `allowDestructive` |
 | `netlab_reboot` | 安全重启验证：preflight 清单 → confirm 重启 → 重启后自检 | `device`, `phase`, `confirm`, `check`, `waitMs` |
 | `netlab_lab` | 10 个实验的任务书/提示/参考配置 | `action`, `lab`, `hintIndex` |
-| `netlab_verify` | 自动验证实验 | `lab`, `bindings` |
+| `netlab_verify` | 自动验证实验 | `lab`, `bindings`, `auto`, `timeoutMs` |
 | `netlab_quiz` | 生成/批改选择题，可按故障出题 | `action`, `topics`, `count`, `quizId`, `answers`, `fault` |
 | `netlab_reference` | 常用命令速查、分层排障、`topic=pitfall` 查 20 条踩坑经验 | `topic`, `query` |
 
@@ -208,7 +208,7 @@ PC 上的数据面测试（`ping`）在 eNSP 里双击 PC 的命令行执行。
 4. netlab_lab action=show lab=vlan-basic
 5. netlab_exec device=sw1 commands=["system-view", "sysname SW1", "vlan batch 10 20"]
 6. netlab_exec device=sw1 commands=["display vlan"]
-7. netlab_verify lab=vlan-basic bindings=[{"role":"SW1","device":"sw1"},{"role":"SW2","device":"sw2"}]
+7. netlab_verify lab=vlan-basic auto=true
 ```
 
 ## 设备文件

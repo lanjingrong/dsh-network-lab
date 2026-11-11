@@ -919,23 +919,62 @@ const labTool = tool({
   },
 })
 
+/**
+ * bindings=auto: pair each lab role with the best unclaimed device.
+ * Roles such as AR1 / R2 / SW1 are matched case-insensitively inside the device
+ * id or name; otherwise devices are handed out in table order.
+ */
+export function autoBindings(roles, devices) {
+  const uniq = [...new Set(roles.map((role) => String(role)))]
+  const pool = (devices || []).filter((device) => device && device.id && device.port !== undefined)
+  const used = new Set()
+  const out = {}
+  const notes = []
+  for (const role of uniq) {
+    const key = role.toLowerCase()
+    const hit = pool.find((device) => !used.has(device.id) && String(device.id).toLowerCase().includes(key))
+      || pool.find((device) => !used.has(device.id) && String(device.name || "").toLowerCase().includes(key))
+    if (hit) {
+      used.add(hit.id)
+      out[role] = hit.id
+      notes.push(role + " → " + hit.id)
+      continue
+    }
+    const free = pool.find((device) => !used.has(device.id))
+    if (free) {
+      used.add(free.id)
+      out[role] = free.id
+      notes.push(role + "（按设备表顺序）→ " + free.id)
+    }
+  }
+  return { bindings: out, notes }
+}
+
 const verifyTool = tool({
   name: 'netlab_verify',
-  description: '按实验内置检查项自动验证设备状态。需要把拓扑角色绑定到真实设备 id，例如 SW1→sw1。只运行只读 display 命令。',
+  description: '按实验内置检查项自动验证设备状态。角色绑设备两种写法：bindings=[{role:"SW1",device:"sw1"}] 手工指定，或 auto=true 按当前设备表自动配对（角色名如 SW1/R1/AR1 会去匹配设备 id 和名称）。只运行只读 display 命令。',
   properties: {
     lab: str('实验 id，例如 vlan-basic'),
-    bindings: arr(obj({ role: str('拓扑角色，例如 SW1'), device: str('真实设备 id') }), '角色到设备的绑定'),
+    bindings: arr(obj({ role: str('拓扑角色，例如 SW1'), device: str('真实设备 id') }), '角色到设备的绑定；与 auto 二选一'),
+    auto: bool("按当前设备表自动配对角色，默认 false；与 bindings 二选一"),
     timeoutMs: int('每条检查命令超时，默认 12000ms'),
   },
-  required: ['lab', 'bindings'],
+  required: ['lab'],
   timeoutMs: 180000,
   outputSchema: VERIFY_OUTPUT,
   async execute(args) {
     const lab = findLab(args.lab)
     if (!lab) throw new Error(`找不到实验 "${args.lab || ''}"。先运行 netlab_lab action=list。`)
-    if (!Array.isArray(args.bindings)) throw new Error('bindings 必须是数组')
-    const mapping = new Map(args.bindings.map((item) => [String(item.role), String(item.device)]))
     const devices = await readDevices()
+    let pairs = args.bindings
+    let bindingNote = ""
+    if (args.auto === true) {
+      const auto = autoBindings(lab.verify.map((check) => check.role), devices)
+      pairs = Object.entries(auto.bindings).map(([role, device]) => ({ role, device }))
+      bindingNote = auto.notes.length ? "自动绑定：" + auto.notes.join("，") : "自动绑定：设备表里没有可用设备。"
+    }
+    if (!Array.isArray(pairs)) throw new Error("bindings 必须是数组（或传 auto=true 自动配对）")
+    const mapping = new Map(pairs.map((item) => [String(item.role), String(item.device)]))
     const results = []
     for (const check of lab.verify) {
       const ref = mapping.get(check.role)
@@ -970,7 +1009,8 @@ const verifyTool = tool({
     if (value.ok) labsRun.add(lab.id)
     const phase = phaseOfLab(lab.id)
     const where = value.ok && phase ? `\n\n本实验属于 **${phase.id}** ${phaseLabel(phase)}，已记入本会话：\`netlab_curriculum action=progress\` 看过关状态。` : ''
-    return { ...value, markdown: verifyMarkdown(lab, results) + where }
+    const head = bindingNote ? `${bindingNote}\n` : ''
+    return { ...value, markdown: head + verifyMarkdown(lab, results) + where }
   },
 })
 
@@ -1405,6 +1445,7 @@ export const __test = {
   quizScores,
   labsRun,
   loadSavedProgress,
+  autoBindings,
   closeAllSessions,
   sessionList,
   scanPorts,

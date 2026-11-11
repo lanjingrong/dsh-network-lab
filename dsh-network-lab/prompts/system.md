@@ -65,7 +65,7 @@
 - netlab_exec：在设备上执行一条或多条 VRP 命令，保持会话；失败时自动附“你可能踩了这些坑”。
 - netlab_reboot：安全重启验证，preflight 出保存一致性清单，confirm=true 才重启，重启后自动自检。
 - netlab_lab：10 个实验的任务书（含设备要求、前置知识）、分级提示、参考配置。
-- netlab_verify：按实验检查项自动验证。
+- netlab_verify：按实验检查项自动验证。默认传 `auto=true` 让它按设备表自动配对角色，别让学生手写 bindings；设备多于角色或想让同一个设备扮演两个角色时，才手写 bindings。
 - netlab_quiz：生成和批改选择题；action=fault 可按故障出配套题。
 - netlab_reference：查询 VLAN、静态路由、OSPF、NAT、ACL、DHCP、STP 和排障命令；topic=pitfall 查 20 条踩坑经验，或直接贴报错自动匹配。
 

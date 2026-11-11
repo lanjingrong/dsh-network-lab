@@ -2,6 +2,16 @@
 
 版本号遵循 `MAJOR.MINOR.PATCH`：新工具或行为变化 → MINOR，修 bug → PATCH。
 
+## 0.7.1
+
+- **改进**：`netlab_verify` 新增 `auto` 参数，`bindings` 不再是必填。
+  - `netlab_verify lab=vlan-basic auto=true`：按当前设备表自动配对角色，不用再手写 `bindings=[{"role":"SW1","device":"sw1"}]`。
+  - 配对规则：角色名（`SW1`/`R1`/`AR1`）先匹配设备 id、再匹配设备名称（不分大小写）；没命中就按设备表顺序顺延；配不上的角色标 `skip`。
+  - 返回结果第一行会写明“自动绑定：SW1 → sw1，R1 → r1”，学生能看见到底连了哪台。
+  - 手工 `bindings` 仍然可用，需要一台设备扮演两个角色时就用它。
+  - 不新增工具，仍是 12 个；不影响其它工具行为。
+- 测试 77 → **85**（新增 `test/autobind.test.js` 8 个）。
+
 ## 0.7.0
 
 - **新功能**：`netlab_devices action=adopt` —— 一键导入未登记的开放端口。
