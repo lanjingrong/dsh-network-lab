@@ -1,6 +1,6 @@
 {
   "name": "dsh-network-lab",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "DeepSeek Harness 网络工程实验插件：eNSP Telnet、HCIA 路线、10 个实验、12 个故障、20 条踩坑知识库、练完就测、安全重启验证",
   "type": "module",
   "private": false,

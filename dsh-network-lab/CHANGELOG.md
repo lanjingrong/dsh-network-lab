@@ -2,6 +2,17 @@
 
 版本号遵循 `MAJOR.MINOR.PATCH`：新工具或行为变化 → MINOR，修 bug → PATCH。
 
+## 0.8.0
+
+- 新增 `netlab_quiz action=retry`：**错题重做**。批改后只说一句“再考我一遍错的”，插件就把上次做错的题挑出来重出一份新测验：
+  - 只出错题，对的题不再出现；
+  - **选项顺序打乱**，上次记住的“答案是 B”作废，必须真懂才能再对；
+  - 不传 `quizId` 默认重做最近一次批改；
+  - 重做全对提示“讲一遍为什么”，没全对列出还剩哪几道、提示先回去看知识点。
+- 批改未全对时，结果末尾直接给出 `netlab_quiz action=retry quizId=...` 的重做入口。
+- 新增 `lib/retry.js`（`buildRetryQuiz` / `retryMarkdown` / `retryBackNote`）与 `test/retry.test.js`（8 个用例）。
+- 测试 85 → 93。
+
 ## 0.7.1
 
 - **改进**：`netlab_verify` 新增 `auto` 参数，`bindings` 不再是必填。

@@ -3,7 +3,7 @@ name: network-lab
 description: 以华为 30 年老工程师视角带教的网络实验教练：连接 eNSP、按 HCIA 路线做 10 个 VRP 实验、12 个故障案例注入排查并自动出题、20 条踩坑知识库、华为命名规范、变更检查卡与安全重启验证。
 whenToUse: 用户要学习网络工程或备考 HCIA、规划学习路线、做华为 eNSP 实验、配置或排查交换机/路由器、遇到 VRP 报错、检查命名与变更规范、重启验证配置，或要求网络工程练习与测验时。
 metadata:
-  version: "0.7.1"
+  version: "0.8.0"
   language: zh-CN
 ---
 
@@ -66,7 +66,7 @@ metadata:
 
 1. 用户描述故障 → 先 `netlab_fault action=diagnose` 让学习者回答 6 个问题，再 `action=list` 找匹配案例。
 2. 教学场景 → `action=show`（不给答案，但给出“先问对问题”清单），让学生自己用 `netlab_exec` 逐条排查。
-3. **练完就测**：`netlab_fault` 默认附带 3-4 道配套题（`quiz=true`）。学生找到根因后，立即让他做题并 `netlab_quiz action=grade`；只讲不测不算学会。
+3. **练完就测**：`netlab_fault` 默认附带 3-4 道配套题（`quiz=true`）。学生找到根因后，立即让他做题并 `netlab_quiz action=grade`；只讲不测不算学会。没全对时先让他 `action=retry` 只重做错题（选项顺序会变，背字母没用），全对了再让他复述根因。
 4. 学生说“看答案” → `action=answer`，然后按“根因 → 修复 → 复盘问题 → 做题”讲。
 5. 需要真实故障环境 → 先征得同意，再 `action=answer inject=true bindings=[...]`，注入后会改设备配置；注入后同样要出题。
 6. 单独给某个故障出题：`netlab_quiz action=fault fault=<id>`。
@@ -193,7 +193,7 @@ display ip pool
 - 执行命令：`netlab_exec`（会话保持；默认拒绝破坏性命令）
 - 实验：`netlab_lab`（list/show/hint/solution）
 - 自动验证：`netlab_verify`（默认 `auto=true` 按设备表自动配对 SW1/R1 等角色；需要特殊映射时才手写 bindings）
-- 测验：`netlab_quiz`（new/grade/topics）
+- 测验：`netlab_quiz`（new/grade/topics/fault/retry）；**错题重做**用 `action=retry`，只出错题且选项打乱，别让学生直接看上次答案
 - 速查：`netlab_reference`（topic=vlan/ospf/nat/.../pitfall）
 - 命名规范：`netlab_standard`（index/sysname/description/vlan/review）
 - 变更检查卡：`netlab_checklist`（list/show/lab）

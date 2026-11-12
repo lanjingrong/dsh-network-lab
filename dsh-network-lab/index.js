@@ -15,6 +15,7 @@ import {
 } from './lib/store.js'
 import { LABS, findLab } from './lib/labs.js'
 import { QUIZ_TOPICS, createQuiz, gradeQuiz } from './lib/quiz.js'
+import { buildRetryQuiz, retryBackNote, retryMarkdown } from './lib/retry.js'
 import { getReference, referenceIndex, searchReference } from './lib/reference.js'
 import {
   CURRICULUM,
@@ -75,6 +76,8 @@ const DANGEROUS = /^(reboot|reset\s+saved-configuration|format|delete\b|undo\s+s
 
 const sessions = new Map()
 const quizzes = new Map()
+const lastGrades = new Map() // quizId -> { quizId, source, result }, used by action=retry
+const retryOf = new Map() // retryQuizId -> { quizId, result }, the graded attempt it retries
 const completedPhases = new Set()
 /** quizId -> percent, kept so a phase can be closed only with a real score. */
 const quizScores = new Map()
@@ -640,6 +643,16 @@ const devicesTool = tool({
         markdown: `# eNSP 端口扫描 127.0.0.1:${start}-${end}\n\n${scanTable(results)}\n\n找到端口后：\`netlab_devices action=adopt port=<端口>\` 一键导入（会自动识别型号），或 \`action=add\` 手工登记。若提示符为空，先确认设备已启动，并关闭占用该端口的 SecureCRT/PuTTY。`,
       }
     }
+    if (action === 'retry') {
+      const wanted = args.quizId ? String(args.quizId) : null
+      const entry = wanted ? lastGrades.get(wanted) : [...lastGrades.values()].pop()
+      if (!entry) throw new Error('没有可重做的错题：先 action=new 或 action=fault 出题，再 action=grade 批改一次')
+      const retry = buildRetryQuiz(entry.source, entry.result, 'quiz-' + Date.now().toString(36))
+      if (!retry) throw new Error('上次 ' + entry.quizId + ' 全对，没有错题要重做')
+      quizzes.set(retry.id, retry)
+      retryOf.set(retry.id, { quizId: entry.quizId, result: entry.result })
+      return { action, markdown: retryMarkdown(retry, { percent: entry.result.percent }) }
+    }
     throw new Error(`未知 action：${action}`)
   },
 })
@@ -1016,9 +1029,9 @@ const verifyTool = tool({
 
 const quizTool = tool({
   name: 'netlab_quiz',
-  description: '生成或批改网络工程选择题。覆盖 VLAN、STP、OSPF、路由、NAT、ACL、DHCP、ARP、子网划分；也可 action=fault 针对某个故障案例出配套题。',
+  description: '生成或批改网络工程选择题。覆盖 VLAN、STP、OSPF、路由、NAT、ACL、DHCP、ARP、子网划分；action=fault 针对某个故障案例出配套题；action=retry 把上次做错的题重做一遍（只收错题，选项换顺序）。',
   properties: {
-    action: { type: 'string', enum: ['new', 'grade', 'topics', 'fault'], description: 'new/grade/topics/fault' },
+    action: { type: 'string', enum: ['new', 'grade', 'topics', 'fault', 'retry'], description: 'new/grade/topics/fault/retry（错题重做）' },
     topics: arr(str('主题，例如 VLAN'), '限定主题；不传则随机'),
     count: int('题目数量，1-10，默认 5'),
     quizId: str('grade 时的测验 id'),
@@ -1050,23 +1063,35 @@ const quizTool = tool({
       quizzes.set(quiz.id, quiz)
       return { action, markdown: `# 故障配套题：${fault.title}\n\n${quizPlanMarkdown(fault, quiz).trim()}` }
     }
+    if (action === 'retry') {
+      const wanted = args.quizId ? String(args.quizId) : null
+      const entry = wanted ? lastGrades.get(wanted) : [...lastGrades.values()].pop()
+      if (!entry) throw new Error('没有可重做的错题：先 action=new 或 action=fault 出题，再 action=grade 批改一次')
+      const retry = buildRetryQuiz(entry.source, entry.result, 'quiz-' + Date.now().toString(36))
+      if (!retry) throw new Error('上次 ' + entry.quizId + ' 全对，没有错题要重做')
+      quizzes.set(retry.id, retry)
+      retryOf.set(retry.id, { quizId: entry.quizId, result: entry.result })
+      return { action, markdown: retryMarkdown(retry, { percent: entry.result.percent }) }
+    }
+
     if (action === 'grade') {
       const quiz = quizzes.get(String(args.quizId || ''))
       if (!quiz) throw new Error('找不到该 quizId；请先 action=new 生成测验')
       const result = gradeQuiz(quiz, args.answers || [])
-      quizzes.delete(quiz.id)
+      const retryLink = result.details.some((item) => !item.isCorrect) ? '\n\n想再来一遍？`netlab_quiz action=retry quizId=' + quiz.id + '` 只出刚才错的题，选项顺序打乱。' : ''
+      lastGrades.set(quiz.id, { quizId: quiz.id, source: quiz, result })
+      if (lastGrades.size > 50) lastGrades.delete(lastGrades.keys().next().value)
       const perQuestion = result.details.map((item) => (item.isCorrect ? item.id : ''))
       quizScores.set(quiz.id, result.percent)
-      // A quiz clears a phase only when every question of that phase is right,
-      // so report which phases this attempt just closed.
       const passed = phasesPassedBy(perQuestion)
       const unlocked = passed.filter((id) => !completedPhases.has(id))
+      const backNote = retryBackNote(retryOf.get(quiz.id), result)
       const tail = unlocked.length
-        ? `\n\n**过关**：这次全部答对的题覆盖了 ${unlocked.join('、')}，可以用 \`netlab_curriculum action=complete phase=${unlocked[0]}\` 标记完成。`
+        ? '\n\n**过关**：这次全部答对的题覆盖了 ' + unlocked.join('、') + '，可以用 `netlab_curriculum action=complete phase=' + unlocked[0] + '` 标记完成。'
         : ''
-      return { action, markdown: quizMarkdownGrade(result) + tail }
+      return { action, markdown: quizMarkdownGrade(result) + backNote + retryLink + tail }
     }
-    throw new Error(`未知 action：${action}`)
+    throw new Error('未知 action：' + action)
   },
 })
 
@@ -1442,6 +1467,8 @@ export const __test = {
   checklistTool,
   completedPhases,
   quizzes,
+  lastGrades,
+  retryOf,
   quizScores,
   labsRun,
   loadSavedProgress,

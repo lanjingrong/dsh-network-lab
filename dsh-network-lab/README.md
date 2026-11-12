@@ -37,7 +37,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 | 能力自检 | `netlab_skillcheck` 按阶段生成检查清单，找薄弱项 |
 | 自动验证 | `netlab_verify` 按实验的 `display` 检查项判定通过/失败，`auto=true` 免手工绑定角色 |
 | 分级提示 | `netlab_lab action=hint` 逐级给提示，`solution` 才给参考配置 |
-| 选择题 | `netlab_quiz` 生成/批改，覆盖 VLAN、STP、OSPF、路由、NAT、ACL、DHCP、ARP、子网划分；**支持按故障出题** |
+| 选择题 | `netlab_quiz` 生成/批改，覆盖 VLAN、STP、OSPF、路由、NAT、ACL、DHCP、ARP、子网划分；**支持按故障出题**，**做错了可以只重做错题**（选项打乱，防背字母） |
 | 命令速查 | `netlab_reference` 离线查询常用配置与分层排障 |
 | 带教经验 | `带教笔记.md`：eNSP 20 个坑、新人 5 个“我以为”、师傅话术；自动注入系统提示 |
 
@@ -194,7 +194,7 @@ PC 上的数据面测试（`ping`）在 eNSP 里双击 PC 的命令行执行。
 | `netlab_reboot` | 安全重启验证：preflight 清单 → confirm 重启 → 重启后自检 | `device`, `phase`, `confirm`, `check`, `waitMs` |
 | `netlab_lab` | 10 个实验的任务书/提示/参考配置 | `action`, `lab`, `hintIndex` |
 | `netlab_verify` | 自动验证实验 | `lab`, `bindings`, `auto`, `timeoutMs` |
-| `netlab_quiz` | 生成/批改选择题，可按故障出题 | `action`, `topics`, `count`, `quizId`, `answers`, `fault` |
+| `netlab_quiz` | 生成/批改选择题，可按故障出题，可只重做错题 | `action`（new/grade/topics/fault/retry）, `topics`, `count`, `quizId`, `answers`, `fault` |
 | `netlab_reference` | 常用命令速查、分层排障、`topic=pitfall` 查 20 条踩坑经验 | `topic`, `query` |
 
 完整路线见 [HCIA学习路线.md](HCIA学习路线.md)，带教经验见 [带教笔记.md](带教笔记.md)。
