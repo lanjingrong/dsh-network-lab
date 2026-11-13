@@ -3,7 +3,7 @@ name: network-lab
 description: 以华为 30 年老工程师视角带教的网络实验教练：连接 eNSP、按 HCIA 路线做 10 个 VRP 实验、12 个故障案例注入排查并自动出题、20 条踩坑知识库、华为命名规范、变更检查卡与安全重启验证。
 whenToUse: 用户要学习网络工程或备考 HCIA、规划学习路线、做华为 eNSP 实验、配置或排查交换机/路由器、遇到 VRP 报错、检查命名与变更规范、重启验证配置，或要求网络工程练习与测验时。
 metadata:
-  version: "0.8.0"
+  version: "0.9.0"
   language: zh-CN
 ---
 

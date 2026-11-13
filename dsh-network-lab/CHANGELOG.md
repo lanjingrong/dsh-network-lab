@@ -2,6 +2,19 @@
 
 版本号遵循 `MAJOR.MINOR.PATCH`：新工具或行为变化 → MINOR，修 bug → PATCH。
 
+## 0.9.0
+
+补上 HCIA 路线最前面两个阶段的题库空白。
+
+- 新问题：phase-0（环境、登录与工具）与 phase-1（设备基础与接口）原来一道题都没有，学习者只能靠做完实验才能标记阶段完成，答题这条路是断的。
+- 新增两个主题，各 5 题：
+  - 「环境与登录」（env-1..5）：视图层级与 system-view、save 的 y/n 确认、eNSP 端口在哪看、display saved-configuration 与 current 对比、console 口认证。
+  - 「设备与接口」（iface-1..5）：Physical/Protocol 双 up、接口视图配 IP 的顺序、shutdown 的后果、description 的价值、---- More ---- 分页处理。
+- 十个阶段现在全部有题可做：phase-0 6 道、phase-1 5 道，其余阶段不变。
+- 正确答案分散在 A/B/C/D，不让人靠蒙某个字母混过 80% 的过关线。
+- lib/route-plan.js：phase-0 / phase-1 的 topics 从空数组改为上面两个主题；lib/route-links.js 的 TOPIC_ALIAS 同步。
+- 新增 test/intro.test.js（7 个用例）：题库结构、id 唯一、答案下标、答案分布、十阶段全覆盖、phase-0 过关判定、通过 netlab_quiz 实际出题批改。
+- 测试 93 → 100；README 徽章（77 → 100）与文档里的题数一并更正。
 ## 0.8.0
 
 - 新增 `netlab_quiz action=retry`：**错题重做**。批改后只说一句“再考我一遍错的”，插件就把上次做错的题挑出来重出一份新测验：

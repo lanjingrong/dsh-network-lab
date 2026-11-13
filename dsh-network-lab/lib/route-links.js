@@ -70,6 +70,8 @@ const TOPIC_ALIAS = {
   DHCP: 'DHCP',
   ARP: 'ARP',
   子网划分: '子网划分',
+  '环境与登录': '环境与登录',
+  '设备与接口': '设备与接口',
 }
 
 /** Which phase teaches a lab, for the lab tool to point back at. */

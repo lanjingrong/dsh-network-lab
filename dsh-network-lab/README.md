@@ -8,7 +8,7 @@
 >
 > 版本变化见 **[CHANGELOG.md](CHANGELOG.md)**。
 
-![tests](https://img.shields.io/badge/tests-77%20passed-3fb950) ![Node](https://img.shields.io/badge/Node-%3E%3D20-339933) ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.5-4B32C3) ![eNSP](https://img.shields.io/badge/eNSP-Huawei%20VRP-C7000B) ![license](https://img.shields.io/badge/license-MIT-blue)
+![tests](https://img.shields.io/badge/tests-100%20passed-3fb950) ![Node](https://img.shields.io/badge/Node-%3E%3D20-339933) ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.5-4B32C3) ![eNSP](https://img.shields.io/badge/eNSP-Huawei%20VRP-C7000B) ![license](https://img.shields.io/badge/license-MIT-blue)
 
 ## 一句话上手
 
@@ -37,7 +37,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 | 能力自检 | `netlab_skillcheck` 按阶段生成检查清单，找薄弱项 |
 | 自动验证 | `netlab_verify` 按实验的 `display` 检查项判定通过/失败，`auto=true` 免手工绑定角色 |
 | 分级提示 | `netlab_lab action=hint` 逐级给提示，`solution` 才给参考配置 |
-| 选择题 | `netlab_quiz` 生成/批改，覆盖 VLAN、STP、OSPF、路由、NAT、ACL、DHCP、ARP、子网划分；**支持按故障出题**，**做错了可以只重做错题**（选项打乱，防背字母） |
+| 选择题 | `netlab_quiz` 生成/批改，**28 题 / 13 个主题**，覆盖环境与登录、设备与接口、VLAN、STP、OSPF、路由、NAT、ACL、DHCP、ARP、子网划分；**支持按故障出题**，**做错了可以只重做错题**（选项打乱，防背字母） |
 | 命令速查 | `netlab_reference` 离线查询常用配置与分层排障 |
 | 带教经验 | `带教笔记.md`：eNSP 20 个坑、新人 5 个“我以为”、师傅话术；自动注入系统提示 |
 
@@ -335,7 +335,7 @@ dsh-network-lab/
 ├─ 从仓库安装后的 8 组练习.md  # 复制粘贴即可的连续练习
 ├─ LICENSE               # MIT
 ├─ .gitignore
-├─ test/                 # 77 个测试 + run-all.mjs 跑全部
+├─ test/                 # 100 个测试 + run-all.mjs 跑全部
 ```
 
 ## 兼容性

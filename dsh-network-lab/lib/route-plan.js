@@ -17,13 +17,13 @@ export const PHASE_PLAN = {
     main: ['save-compare'],
     more: [],
     faults: ['f10-save-lost', 'f09-aaa-lockout'],
-    topics: [],
+    topics: ['环境与登录'],
   },
   'phase-1': {
     main: ['aaa-telnet'],
     more: ['save-compare'],
     faults: ['f09-aaa-lockout'],
-    topics: [],
+    topics: ['设备与接口'],
   },
   'phase-2': {
     main: ['vlan-basic'],
